@@ -139,8 +139,6 @@ class Way{
             case 270:sign="d";break;
         }
 
-        console.log(dir,sign);
-
         let n_path = new Way(1, 1, [sign].concat(this.path));
         return n_path.abs_length;
     }
@@ -218,8 +216,6 @@ class Player{
                     this.running=false;
                 }else{
                     this.doing=this.commandToDirection(this.running_path.splice(0,1)[0]);
-
-                    console.log(this.doing, this.direction);
 
                     if(this.doing-this.direction!=0){
                         this.doing_mode=-1;
