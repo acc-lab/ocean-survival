@@ -95,29 +95,61 @@ class Floor{
 }
 
 class Way{
-    constructor(bx,by,path=[]){
+    constructor(bx,by,path=[],coord="DEFAULT"){
         this.x=bx;
         this.y=by;
         this.path=path;
+		
+		if(coord=="DEFAULT"){
+			this.coord=[[0,0]];
+			
+			let cmd;
+			let lastcoord;
+			
+			for(i=0;i<this.path.length;i++){
+				cmd=this.path[i];
+				
+				lastcoord=this.coord[this.coord.length-1];
+				
+				switch(cmd){
+					case "l": this.coord.push([lastcoord[0]-1,lastcoord[1]]); break;
+					case "r": this.coord.push([lastcoord[0]+1,lastcoord[1]]); break;
+					case "u": this.coord.push([lastcoord[0],lastcoord[1]-1]); break;
+					case "d": this.coord.push([lastcoord[0],lastcoord[1]+1]); break;
+				}
+			}
+		}else{
+			this.coord=coord;
+		}
     }
     getMix(command){
         let x=this.x+0;
         let y=this.y+0;
         let path=this.path.slice();
+		let coord=this.coord.slice();
+		
+		let lastcoord=coord[coord.length-1];
 
         if(command=="l"){
             x-=1;
+			coord.push([lastcoord[0]-1,lastcoord[1]]);
+			
         }if(command=="r"){
             x+=1;
+			coord.push([lastcoord[0]+1,lastcoord[1]]);
+			
         }if(command=="u"){
             y-=1;
+			coord.push([lastcoord[0],lastcoord[1]-1]);
+			
         }if(command=="d"){
             y+=1;
+			coord.push([lastcoord[0],lastcoord[1]+1]);
         }
 
         path.push(command);
 
-        let new_way = new Way(x,y,path);
+        let new_way = new Way(x,y,path,coord);
 
         return new_way;
     }
@@ -139,9 +171,23 @@ class Way{
             case 270:sign="d";break;
         }
 
-        let n_path = new Way(1, 1, [sign].concat(this.path));
+        let n_path = new Way(1, 1, [sign].concat(this.path),[]);
         return n_path.abs_length;
     }
+	get check_unnecessary_step(){
+		let lastcoord=this.coord[this.coord.length-1];
+		
+		let flag=false;
+		
+		for(i=0;i<this.coord.length-1;i++){
+			if(lastcoord[0]==this.coord[i][0] && lastcoord[1]==this.coord[i][1]){
+				flag=true;
+				break;
+			}
+		}
+		
+		return flag;
+	}
 }
 
 class Player{
@@ -173,13 +219,18 @@ class Player{
             direction=0;
         }
 
-        this.running=true;
         this.running_path=this.pathFind(bx,by,direction);
+		
+		if(this.running_path!="FAILED"){
+			this.running=true;
+			
+			this.doing=this.commandToDirection(this.running_path.splice(0,1)[0]);
 
-        this.doing=this.commandToDirection(this.running_path.splice(0,1)[0]);
-
-        this.doing_mode=-1;
-        this.doing_timing=3;
+			this.doing_mode=-1;
+			this.doing_timing=3;
+		}else{
+			this.running_path=[];
+		}
     }
     doMovement(){
         if(this.doing_mode==-1){
@@ -266,42 +317,64 @@ class Player{
         let run=true;
 
         let short_path=[];
+		
+		let failed=false;
+		
+		let runtime=0;
+		
+		let newPath;
 
-        while(short_path.length==0){
+        while(short_path.length==0 && !failed){
+			runtime+=1;
+			
             for(i=0;i<ways.length;i++){
                 way=ways[i];
 
                 addPath=getConnect(way.x, way.y);
 
                 for(j=0;j<addPath.length;j++){
-                    if(way.path.length==0){
-                        new_ways.push(way.getMix(addPath[j]));
-                    }
-                    else if(!contradict(way.path[way.path.length-1],addPath[j])){
-                        new_ways.push(way.getMix(addPath[j]));
-                    }
+					newPath=way.getMix(addPath[j]);
+					
+					if(!newPath.check_unnecessary_step){					
+						if(way.path.length==0){
+							new_ways.push(newPath);
+						}
+						else if(!contradict(way.path[way.path.length-1],addPath[j])){
+							new_ways.push(newPath);
+						}
+					}
                 }
             }
+			
             ways=new_ways;
             new_ways=[];
-
-            for(i=0;i<ways.length;i++){
-                if(ways[i].x==bx && ways[i].y==by){
-                    short_path.push(ways[i]);
-                }
-            }
+			
+			console.log(runtime, ways.length);
+			
+			if(ways.length>=3000 || runtime>=150){
+				failed=true;
+			}else{
+				for(i=0;i<ways.length;i++){
+					if(ways[i].x==bx && ways[i].y==by){
+						short_path.push(ways[i]);
+					}
+				}
+			}
         }
+	
+		if(failed){
+			return "FAILED";
+		}else{
+			let shortest_path=short_path[0];
 
-        let shortest_path=short_path[0];
+			for(i=0;i<short_path.length;i++){
+				if(short_path[i].get_abs_length(direction)<shortest_path.get_abs_length(direction)){
+					shortest_path=short_path[i];
+				}
+			}
 
-        for(i=0;i<short_path.length;i++){
-            console.log(short_path[i], short_path[i].get_abs_length(direction), direction);
-            if(short_path[i].get_abs_length(direction)<shortest_path.get_abs_length(direction)){
-                shortest_path=short_path[i];
-            }
-        }
-
-        return shortest_path.path;
+			return shortest_path.path;
+		}
     }
 }
 
@@ -313,10 +386,16 @@ function new_floor(bx,by){
 
 var player = new Player(9,6);
 
-new_floor(8,6);
-new_floor(8,7);
-new_floor(9,6);
-new_floor(9,7);
+MAP=[[8,6],[8,7],[9,6],[9,7],[10,6],[11,6],[11,7],[11,8],[10,8],[10,9],[9,9],[8,9],[7,9],[7,8],[6,8],[6,7],[6,6],[6,5],[7,5],
+[7,4],[8,4],[9,4],[11,4],[10,4],[12,4],[13,5],[12,5],[13,6],[13,7],[13,8],[13,9],[12,9],[12,10],[11,10],[11,11],[11,12],[12,12],
+[13,12],[13,11],[14,11],[15,11],[16,11],[16,10],[16,9],[15,9],[15,8],[15,7],[16,7],[16,6],[16,5],[15,5],[15,4],[14,4],[14,3],
+[15,3],[15,2],[15,1],[14,1],[13,1],[13,2],[12,2],[11,2],[11,1],[10,1],[9,1],[9,2],[8,2],[7,2],[7,1],[6,1],[5,1],[5,2],[4,2],
+[3,2],[3,1],[2,1],[1,1],[1,2],[1,3],[2,3],[2,4],[3,4],[4,4],[4,5],[4,6],[3,6],[2,6],[1,6],[1,7],[2,7],[1,8],[1,9],[2,9],
+[3,9],[3,8],[5,8],[4,8],[4,9],[4,10],[4,11],[3,11],[2,11],[2,12],[5,11],[6,11],[7,11],[9,11],[9,12],[8,12],[7,12]]
+
+for(i=0;i<MAP.length;i++){
+	new_floor(MAP[i][0],MAP[i][1]);
+}
 
 function update(){
     if(Object.keys(store).length==1){
@@ -341,7 +420,9 @@ function update(){
                 by=re[1];
                 if(withFloor(bx,by)){
                     player.compile_run(bx,by);
-                }
+                }else{
+					new_floor(bx,by);
+				}
 
                 cursor_click=false;
             }
