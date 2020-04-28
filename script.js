@@ -174,13 +174,13 @@ class Way{
         let n_path = new Way(1, 1, [sign].concat(this.path),[]);
         return n_path.abs_length;
     }
-	get check_unnecessary_step(){
+	check_unnecessary_step(x,y,done){
 		let lastcoord=this.coord[this.coord.length-1];
 		
 		let flag=false;
 		
-		for(i=0;i<this.coord.length-1;i++){
-			if(lastcoord[0]==this.coord[i][0] && lastcoord[1]==this.coord[i][1]){
+		for(i=0;i<done.length-1;i++){
+			if(x+lastcoord[0]==done[i][0] && y+lastcoord[1]==done[i][1]){
 				flag=true;
 				break;
 			}
@@ -286,6 +286,8 @@ class Player{
 
         let ways=[];
         let new_ways=[];
+		
+		let steps_done=[coord];
 
         function getConnect(x_,y_){
             let re=[];
@@ -335,12 +337,10 @@ class Player{
                 for(j=0;j<addPath.length;j++){
 					newPath=way.getMix(addPath[j]);
 					
-					if(!newPath.check_unnecessary_step){					
-						if(way.path.length==0){
+					if(!newPath.check_unnecessary_step(x,y,steps_done)){					
+						if(way.path.length==0 || !contradict(way.path[way.path.length-1],addPath[j])){
 							new_ways.push(newPath);
-						}
-						else if(!contradict(way.path[way.path.length-1],addPath[j])){
-							new_ways.push(newPath);
+							steps_done.push([newPath.coord[newPath.coord.length-1][0]+x,newPath.coord[newPath.coord.length-1][1]+y]);
 						}
 					}
                 }
@@ -348,8 +348,6 @@ class Player{
 			
             ways=new_ways;
             new_ways=[];
-			
-			console.log(runtime, ways.length);
 			
 			if(ways.length>=3000 || runtime>=150){
 				failed=true;
@@ -386,12 +384,7 @@ function new_floor(bx,by){
 
 var player = new Player(9,6);
 
-MAP=[[8,6],[8,7],[9,6],[9,7],[10,6],[11,6],[11,7],[11,8],[10,8],[10,9],[9,9],[8,9],[7,9],[7,8],[6,8],[6,7],[6,6],[6,5],[7,5],
-[7,4],[8,4],[9,4],[11,4],[10,4],[12,4],[13,5],[12,5],[13,6],[13,7],[13,8],[13,9],[12,9],[12,10],[11,10],[11,11],[11,12],[12,12],
-[13,12],[13,11],[14,11],[15,11],[16,11],[16,10],[16,9],[15,9],[15,8],[15,7],[16,7],[16,6],[16,5],[15,5],[15,4],[14,4],[14,3],
-[15,3],[15,2],[15,1],[14,1],[13,1],[13,2],[12,2],[11,2],[11,1],[10,1],[9,1],[9,2],[8,2],[7,2],[7,1],[6,1],[5,1],[5,2],[4,2],
-[3,2],[3,1],[2,1],[1,1],[1,2],[1,3],[2,3],[2,4],[3,4],[4,4],[4,5],[4,6],[3,6],[2,6],[1,6],[1,7],[2,7],[1,8],[1,9],[2,9],
-[3,9],[3,8],[5,8],[4,8],[4,9],[4,10],[4,11],[3,11],[2,11],[2,12],[5,11],[6,11],[7,11],[9,11],[9,12],[8,12],[7,12]]
+MAP=[[8,6],[8,7],[9,6],[9,7]];
 
 for(i=0;i<MAP.length;i++){
 	new_floor(MAP[i][0],MAP[i][1]);
